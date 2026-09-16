@@ -17,6 +17,7 @@ def analyst_node(state: ResearchState, *, llm: BaseChatModel, settings: Settings
         raise EvidenceError("Current-city evidence is missing. Restart research.")
     progress(f"Analyzing {city.city_name}: checking recommendations and citations")
     if not any(r.snippet.strip() for r in bundle.all_results()):
+        progress("LLM: Skipped — no usable city snippets; recording missing information.")
         report = CityReport(city=city, important_places=[],
                             best_time_to_visit=BestTimeToVisit(recommended_months=[], summary=MISSING,
                                 weather_considerations=MISSING, crowd_or_price_considerations=MISSING, source_urls=[]),
@@ -28,7 +29,7 @@ def analyst_node(state: ResearchState, *, llm: BaseChatModel, settings: Settings
         report = extract(llm, CityReport, ANALYST_PROMPT,
                          {"current_city": city.model_dump(mode="json"),
                           "evidence": bundle.model_dump(mode="json"),
-                          "places_per_city": settings.places_per_city})
+                          "places_per_city": settings.places_per_city}, progress=progress)
     report = audit_report(report, city, bundle, state["discovery_results"])
     places = report.important_places[:settings.places_per_city]
     # Prevent duplicate names from counting toward the desired number of places.

@@ -29,7 +29,7 @@ def researcher_node(state: ResearchState, *, search: BaseTool, settings: Setting
     warnings = []
     for section, queries in groups.items():
         progress(f"Researching {city.city_name}: {section}")
-        results, failures = run_searches(search, queries, settings)
+        results, failures = run_searches(search, queries, settings, progress=progress)
         collected[section] = results
         warnings.extend(failures)
     bundle = CityResearchBundle(city_name=city.city_name, country=city.country, **collected)

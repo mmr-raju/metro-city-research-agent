@@ -42,6 +42,14 @@ Example inputs: `Japan`, `Brazil`, `United Kingdom`, `UK`, `USA`, `Czech Republi
 or ISO codes such as `JP`. These inputs initiate live research; availability of a
 supported top-three ranking is not guaranteed.
 
+## Implemented architecture
+
+![Implemented architecture: Streamlit runs Discovery, then a sequential Researcher and Analyst loop for three cities, followed by Finalizer and a cited report with JSON download. Shared in-memory state holds the queue, evidence and reports; You.com supplies search evidence and OpenAI or Groq supplies structured extraction.](docs/images/implemented-architecture.png)
+
+The infographic shows the implemented workflow, shared state and external services.
+The queue router is deterministic; the chat model is called only by Discovery and
+Analyst. The node-level flow and responsibilities are detailed below.
+
 ## Why this is an agentic queue-based system
 
 LangGraph owns a typed state and explicit transitions. The model interprets evidence

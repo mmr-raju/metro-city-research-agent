@@ -85,15 +85,40 @@ def render_report(report: CountryResearchReport) -> None:
                        file_name="country-city-research.json", mime="application/json")
 
 
+def clear_research() -> None:
+    st.session_state["country_input"] = ""
+    st.session_state.pop("report", None)
+    st.session_state.pop("workflow_activity", None)
+
+
+def activity_panel():
+    panel = st.expander("Workflow activity: You.com and LLM calls", expanded=True)
+    with panel:
+        st.caption("Discovery: search → LLM. Each city: search → LLM. Finalizer: evidence checks.")
+        st.caption("Calls appear in execution order. Automatic retries are included within each call.")
+        return st.container(height=360)
+
+
 def main() -> None:
     st.set_page_config(page_title="Country & City Research", page_icon="🌍", layout="wide")
     st.title("Country & City Research")
     st.write("Explore the three largest urban or metro areas with cited places, visit timing and local transport guidance.")
     with st.form("research"):
-        country = st.text_input("Country", placeholder="Japan, Brazil, UK…", max_chars=100)
-        submitted = st.form_submit_button("Run Research", type="primary")
+        country = st.text_input("Country", placeholder="Japan, Brazil, UK…", max_chars=100,
+                                key="country_input")
+        with st.container(horizontal=True, vertical_alignment="center", gap="small"):
+            submitted = st.form_submit_button("Run Research", type="primary")
+            st.form_submit_button("✕", help="Clear country and results", on_click=clear_research)
     if submitted:
         st.session_state.pop("report", None)
+        st.session_state["workflow_activity"] = []
+        activity = activity_panel()
+
+        def record(message: str) -> None:
+            st.session_state["workflow_activity"].append(message)
+            with activity:
+                st.text(f"{len(st.session_state['workflow_activity']):02d}. {message}")
+
         try:
             normalize_country(country)  # Input errors should appear even before keys are configured.
             settings = Settings.from_env()
@@ -104,6 +129,7 @@ def main() -> None:
 
                 def update(message: str) -> None:
                     status.update(label=message)
+                    record(message)
 
                 with YouComClient(settings) as client:
                     workflow = build_graph(llm, create_search_tool(client), settings, update)
@@ -113,17 +139,24 @@ def main() -> None:
                             completed += 1
                             progress_bar.progress(min(completed / 8, 1.0))
                             if node == "discovery":
-                                st.write("Cities selected: " + ", ".join(c.city_name for c in change["city_queue"]))
+                                record("Cities selected: " + ", ".join(c.city_name for c in change["city_queue"]))
                             if node == "analyst":
-                                st.write("Completed " + change["city_reports"][0].city.city_name)
+                                record("Completed " + change["city_reports"][0].city.city_name)
                             if node == "finalizer":
                                 st.session_state["report"] = change["final_report"]
                 status.update(label="Research complete", state="complete", expanded=False)
+                record("Research complete — report ready.")
         except ResearchError as exc:
+            record("Research stopped: " + str(exc))
             st.error(str(exc))
         except Exception:
             # Never render SDK errors: they can contain request details or credentials.
+            record("Research stopped unexpectedly. Check your configuration and model access, then retry.")
             st.error("Research could not complete. Check your configuration and model access, then retry.")
+    elif st.session_state.get("workflow_activity"):
+        with activity_panel():
+            for index, message in enumerate(st.session_state["workflow_activity"], 1):
+                st.text(f"{index:02d}. {message}")
     if "report" in st.session_state:
         render_report(st.session_state["report"])
 

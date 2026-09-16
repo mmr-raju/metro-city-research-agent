@@ -46,31 +46,47 @@ def model_error_message(exc: Exception) -> str:
     return "The model could not produce a valid structured response. Check LLM_MODEL and function-calling support, then retry."
 
 
-def extract(llm: BaseChatModel, schema: type[T], prompt: str, data: dict) -> T:
+def extract(llm: BaseChatModel, schema: type[T], prompt: str, data: dict,
+            *, progress: Progress | None = None) -> T:
+    notify = progress or (lambda message: None)
     try:
         # A JSON-schema envelope returns a dictionary. Validate as JSON ourselves:
         # strict Pydantic datetime fields must accept JSON timestamp strings, while
         # the default PydanticToolsParser validates Python kwargs instead.
         structured = llm.with_structured_output(schema.model_json_schema(), method="function_calling")
+        notify("LLM: Calling model to extract a structured result from retrieved evidence.")
         result = structured.invoke([SystemMessage(content=prompt),
                                     HumanMessage(content=json.dumps(data, ensure_ascii=False))])
-        if isinstance(result, schema):
-            return result
         # JSON validation permits JSON URL/datetime strings while preserving strict numbers.
-        return schema.model_validate_json(json.dumps(result))
+        validated = result if isinstance(result, schema) else schema.model_validate_json(json.dumps(result))
     except Exception as exc:
+        notify("LLM: Failed to produce a valid structured result.")
         raise ModelError(model_error_message(exc)) from None
+    notify("LLM: Completed structured extraction; evidence checks follow.")
+    return validated
 
 
-def run_searches(search: BaseTool, queries: list[str], settings: Settings) -> tuple[list[SearchResult], list[str]]:
+def run_searches(search: BaseTool, queries: list[str], settings: Settings,
+                 *, progress: Progress | None = None) -> tuple[list[SearchResult], list[str]]:
+    notify = progress or (lambda message: None)
     results: list[SearchResult] = []
     warnings: list[str] = []
-    for query in queries:
+    for index, query in enumerate(queries, 1):
+        label = f"You.com search {index}/{len(queries)}"
+        notify(f"{label}: Calling live search — {query}")
         try:
             response = search.invoke({"query": query, "count": settings.search_result_count})
-            results.extend(SearchResult.model_validate_json(json.dumps(row)) for row in response)
+            rows = [SearchResult.model_validate_json(json.dumps(row)) for row in response]
+            results.extend(rows)
         except SearchAuthenticationError:
+            notify(f"{label}: Failed — check search account access or credits.")
             raise
         except SearchError as exc:
+            notify(f"{label}: Failed — continuing with the remaining searches.")
             warnings.append(f"Search incomplete for '{query}': {exc}")
+        except Exception:
+            notify(f"{label}: Failed — search results could not be processed.")
+            raise
+        else:
+            notify(f"{label}: Completed — {len(rows)} results returned.")
     return deduplicate(results), warnings

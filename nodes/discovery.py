@@ -23,7 +23,7 @@ def discovery_node(state: ResearchState, *, llm: BaseChatModel, search: BaseTool
         f"{country} largest urban agglomerations population UN",
         f"{country} census official statistics largest urban areas population",
         f"site:gov {country} metropolitan population cities",
-    ], settings)
+    ], settings, progress=progress)
     if not any(row.snippet.strip() for row in results):
         if warnings:
             details = list(dict.fromkeys(w.split(": ", 1)[-1] for w in warnings))
@@ -33,7 +33,7 @@ def discovery_node(state: ResearchState, *, llm: BaseChatModel, search: BaseTool
     raw = json.dumps([r.model_dump(mode="json") for r in results], ensure_ascii=False)
     data = extract(llm, DiscoveryExtraction, DISCOVERY_PROMPT,
                    {"country": country, "current_year": datetime.now(timezone.utc).year,
-                    "search_results": json.loads(raw)})
+                    "search_results": json.loads(raw)}, progress=progress)
     cities = data.cities
     if len(cities) != 3:
         raise InsufficientRankingError("The retrieved evidence does not establish three recognized urban/metro areas. This country may have fewer than three; no cities were invented.")

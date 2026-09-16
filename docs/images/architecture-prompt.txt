@@ -1,0 +1,20 @@
+Use case: infographic-diagram
+Asset type: PNG architecture infographic for a software repository README.
+Create a polished, highly legible landscape infographic titled "Country & City Research Agent" with subtitle "Implemented architecture • Python + Streamlit + LangGraph".
+Style: crisp technical editorial diagram, white background, navy typography, teal workflow cards, restrained amber routing accent, simple line icons, generous spacing. High resolution landscape about 1800 x 1200 or larger. Prioritize correct readable text and unambiguous arrows.
+
+Main central panel title "LangGraph workflow". Show the following exact execution topology as a connected flow:
+"Streamlit UI" (small text "Country input • progress") -> "Discovery" (small text "Normalize country; validate top 3 areas" and "4 population searches + structured extraction") -> "Researcher" (small text "Take one city from the queue" and "9 searches: places, timing, transport") -> "Analyst" (small text "Current city + its evidence only" and "Structured CityReport; audit citations") -> diamond "Queue empty?"
+The diamond has two outgoing arrows only: "No" loops back to Researcher, and "Yes" leads to "Finalizer" (small text "Verify 3 reports; re-audit citations" and "Assemble in population order") -> "Streamlit results" (small text "Cited travel report + JSON download").
+Arrange workflow in two rows if necessary for large readable cards. Discovery and Researcher and Analyst are actual nodes; queue is state, not a node. Clearly distinguish the router diamond from nodes. Finalizer uses no LLM.
+
+Below the workflow create a full-width supporting band titled "Shared in-memory ResearchState" with three concise columns: "Ranked city queue + current city"; "Discovery evidence + per-city audit trail"; "Append-only reports + warnings". Small note "Analyst clears temporary city state after each report". Visually associate this band with the graph through enclosure or subtle shared-state grouping, not misleading execution arrows.
+
+Bottom row: two service cards with explicit dependency text, no ambiguous connectors:
+"You.com Search" / "LangChain tool → HTTP client → Search API" / "Used by Discovery and Researcher" / "Normalized URLs, snippets and source metadata"
+"Configurable chat model" / "OpenAI or Groq via LangChain" / "Used by Discovery and Analyst" / "Structured output + strict Pydantic validation"
+
+Footer: "Typical successful run: 31 search requests • 4 model calls • 8 node executions"
+Small secondary footer: "Before retries; empty city evidence skips its model call. In-memory only; no database or scraping."
+
+Constraints: accurate architecture only; exactly three cities processed sequentially. No independent queue executable node, no autonomous model routing, no database, no vector store, no browser, no extra services. No decorative tiny unreadable text. Maintain all arrow labels and intended dependencies.
